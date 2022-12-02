@@ -51,7 +51,16 @@ const App = () => {
           setNewName("");
           setNewNumber("");
         })
-        .catch((error) => console.log(error));
+        .catch((error) => {
+          console.log(error.response.data);
+          setMessage({
+            type: "delete",
+            text: `${error.response.data.error}`,
+          });
+          setTimeout(() => {
+            setMessage(undefined);
+          }, 3000);
+        });
     }
   };
 
