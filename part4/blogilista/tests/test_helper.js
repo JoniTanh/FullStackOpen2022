@@ -1,4 +1,5 @@
 const Blog = require("../models/blog");
+const User = require("../models/user");
 
 const initialBlogs = [
   {
@@ -19,6 +20,11 @@ const initialBlogs = [
   },
 ];
 
+const usersInDb = async () => {
+  const users = await User.find({});
+  return users.map((u) => u.toJSON());
+};
+
 beforeEach(async () => {
   await Blog.deleteMany({});
   await Blog.insertMany(initialBlogs);
@@ -26,4 +32,5 @@ beforeEach(async () => {
 
 module.exports = {
   initialBlogs,
+  usersInDb,
 };
