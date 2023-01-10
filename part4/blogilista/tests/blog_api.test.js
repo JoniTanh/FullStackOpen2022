@@ -104,7 +104,7 @@ describe("post method", () => {
       .expect(400);
   });
 
-  test("posting a blog now allowed without token", async () => {
+  test("401 unauthorized without token", async () => {
     const blogWithoutToken = {
       title: "Token Missing book",
       author: "Random guy",
@@ -117,7 +117,7 @@ describe("post method", () => {
       .post("/api/blogs")
       .set("Authorization", `Bearer ${token}`)
       .send(blogWithoutToken)
-      .expect(500);
+      .expect(401);
   });
 });
 

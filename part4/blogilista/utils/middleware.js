@@ -1,5 +1,16 @@
 const User = require("../models/user");
+const logger = require("./logger");
 const jwt = require("jsonwebtoken");
+
+const errorHandler = (error, request, response, next) => {
+  if (error.name === "JsonWebTokenError") {
+    return response.status(401).json({ error: "invalid token" });
+  }
+
+  logger.error(error.message);
+
+  next(error);
+};
 
 const tokenExtractor = (request, response, next) => {
   const authorization = request.get("authorization");
@@ -23,6 +34,7 @@ const userExtractor = async (request, response, next) => {
 };
 
 module.exports = {
+  errorHandler,
   tokenExtractor,
   userExtractor,
 };
