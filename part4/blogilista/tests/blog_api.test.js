@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const User = require("../models/user");
 const helper = require("./test_helper");
 const api = supertest(app);
+const jwt = require("jsonwebtoken");
 
 describe("get method", () => {
   test("blogs are returned as json", async () => {
@@ -27,6 +28,18 @@ describe("get method", () => {
 });
 
 describe("post method", () => {
+  let token = null;
+
+  beforeEach(async () => {
+    await User.deleteMany({});
+
+    const passwordHash = await bcrypt.hash("sekret", 10);
+    const user = await new User({ username: "root", passwordHash }).save();
+
+    const userForToken = { username: user.username, id: user.id };
+    return (token = jwt.sign(userForToken, process.env.SECRET));
+  });
+
   test("a valid blog can be added ", async () => {
     const newBlog = {
       title: "New Blog Part 5",
@@ -37,6 +50,7 @@ describe("post method", () => {
 
     await api
       .post("/api/blogs")
+      .set("Authorization", `Bearer ${token}`)
       .send(newBlog)
       .expect(201)
       .expect("Content-Type", /application\/json/);
@@ -54,6 +68,7 @@ describe("post method", () => {
 
     const response = await api
       .post("/api/blogs")
+      .set("Authorization", `Bearer ${token}`)
       .send(defaultZeroLikes)
       .expect(201)
       .expect("Content-Type", /application\/json/);
@@ -68,7 +83,11 @@ describe("post method", () => {
       likes: 999,
     };
 
-    await api.post("/api/blogs").send(blogWithoutTitle).expect(400);
+    await api
+      .post("/api/blogs")
+      .set("Authorization", `Bearer ${token}`)
+      .send(blogWithoutTitle)
+      .expect(400);
   });
 
   test("bad request without url", async () => {
@@ -78,41 +97,98 @@ describe("post method", () => {
       likes: 999,
     };
 
-    await api.post("/api/blogs").send(blogWithoutUrl).expect(400);
+    await api
+      .post("/api/blogs")
+      .set("Authorization", `Bearer ${token}`)
+      .send(blogWithoutUrl)
+      .expect(400);
+  });
+
+  test("posting a blog now allowed without token", async () => {
+    const blogWithoutToken = {
+      title: "Token Missing book",
+      author: "Random guy",
+      likes: 666,
+    };
+
+    token = null;
+
+    await api
+      .post("/api/blogs")
+      .set("Authorization", `Bearer ${token}`)
+      .send(blogWithoutToken)
+      .expect(500);
   });
 });
 
 describe("delete method", () => {
+  let token = null;
+
+  beforeEach(async () => {
+    await Blog.deleteMany({});
+    await User.deleteMany({});
+
+    const passwordHash = await bcrypt.hash("sekret", 10);
+    const user = await new User({ username: "root", passwordHash }).save();
+
+    const userForToken = { username: user.username, id: user.id };
+    token = jwt.sign(userForToken, process.env.SECRET);
+
+    const newBlog = {
+      title: "useless junk",
+      author: "root",
+      url: "www.google.com",
+    };
+
+    await api
+      .post("/api/blogs")
+      .set("Authorization", `Bearer ${token}`)
+      .send(newBlog)
+      .expect(201)
+      .expect("Content-Type", /application\/json/);
+
+    return token;
+  });
+
   test("blog successfully deleted", async () => {
-    const blogs = await Blog.find({});
+    const blogs = await Blog.find({}).populate("user");
     const blogToDelete = blogs[0];
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(204);
 
-    const remainingBlogs = await Blog.find({});
+    const remainingBlogs = await Blog.find({}).populate("user");
 
     expect(remainingBlogs).toHaveLength(blogs.length - 1);
   });
 
   test("blogs not including deleted blog's title", async () => {
-    const blogs = await Blog.find({});
+    const blogs = await Blog.find({}).populate("user");
     const blogToDelete = blogs[0];
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(204);
 
-    const remainingBlogs = await Blog.find({});
+    const remainingBlogs = await Blog.find({}).populate("user");
 
     const titles = remainingBlogs.map((blog) => blog.title);
     expect(titles).not.toContain(blogToDelete.title);
   });
 
   test("blogs not including deleted blog's id", async () => {
-    const blogs = await Blog.find({});
+    const blogs = await Blog.find({}).populate("user");
     const blogToDelete = blogs[0];
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(204);
 
-    const remainingBlogs = await Blog.find({});
+    const remainingBlogs = await Blog.find({}).populate("user");
 
     const ids = remainingBlogs.map((blog) => blog.id);
     expect(ids).not.toContain(blogToDelete.id);
